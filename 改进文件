@@ -1,0 +1,8 @@
+/__health 响应缓存	如果 Edge 缓存了这枚 1×1 PNG，服务关闭后 img.onload 可能仍触发，导致反复跳转到失效地址。	在 server.js 返回图片时设置响应头：
+'Cache-Control': 'no-cache, no-store, must-revalidate'
+Server 日志输出	文档提到 server.js 写 server.log，但未说明 console.log/error 是否重定向。VBS 隐藏窗口启动后，若未显式写文件，所有控制台输出会丢失，问题难以排查。	在 server.js 开头用 fs.createWriteStream 重定向 process.stdout/stderr，或在 launch_server.vbs 里用 cmd /c node server.js >> server.log 2>&1 的方式启动。
+server.pid 残留	如果 Node 进程被强制结束（如任务管理器终止），server.pid 文件不会删除；下次启动会覆盖，无大碍。但若手动删除 server.js 后残留 PID 文件，recover.bat 执行 taskkill /PID 会报错（进程不存在）。	在 recover.bat 中先判断进程是否存在，例如：
+tasklist /FI "PID eq %pid%" 2>NUL | find /I "%pid%" >NUL && taskkill /PID %pid%
+信号处理不完整	server.js 如果在退出时未删除 PID 文件，可能造成上面提到的小困扰。	在 server.js 中加入 process.on('exit', () => fs.unlinkSync(pidPath))，并监听 SIGTERM 等信号优雅关闭。
+帮助文件编码	设计假设所有 .htm 文件均为 UTF-8。若实际存在 ANSI/GBK 文件，注入的脚本片段（含中文提示）可能导致页面乱码或 </body> 被破坏。	可在 inject.js 中先检测文件是否带 BOM 或尝试读取前几个字节判断编码，否则保持原样；若全部已知为 UTF-8 则没问题。
+Edge 翻译栏触发	Edge 对 localhost 地址不会自动弹出翻译提示（与 127.0.0.1 或公网页面不同），用户必须手动点击地址栏翻译图标。	文档已在降级表格中说明，为必须的用户操作，无技术问题，但可考虑在注入的提示中加入“跳转后请点击地址栏翻译图标”的文字，减少用户困惑。
