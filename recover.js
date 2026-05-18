@@ -1,3 +1,5 @@
+'use strict';
+
 const fs = require('fs');
 const path = require('path');
 
@@ -6,7 +8,7 @@ const MARKER = 'data-translate-injected';
 
 let total = 0, recovered = 0, clean = 0;
 
-function walk(dir) {
+const walk = (dir) => {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
         const full = path.join(dir, entry.name);
@@ -20,9 +22,9 @@ function walk(dir) {
             processFile(full);
         }
     }
-}
+};
 
-function processFile(filePath) {
+const processFile = (filePath) => {
     const content = fs.readFileSync(filePath, 'utf-8');
 
     if (!content.includes(MARKER)) {
@@ -42,7 +44,7 @@ function processFile(filePath) {
     fs.writeFileSync(filePath, newContent, 'utf-8');
     recovered++;
     console.log('  DONE:', path.relative(HELP_DIR, filePath));
-}
+};
 
 console.log('Scanning help directory...');
 walk(HELP_DIR);

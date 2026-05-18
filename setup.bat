@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 cd /d "%~dp0"
 
 echo ========================================
@@ -18,7 +19,7 @@ node --version
 
 echo.
 echo [2/5] Injecting redirect script...
-node inject.js
+node "%~dp0inject.js"
 if errorlevel 1 (
     echo [ERROR] Injection failed. Run as Administrator.
     pause
@@ -30,8 +31,8 @@ echo [3/5] Creating launcher...
 (
 echo Set ws = CreateObject^("WScript.Shell"^)
 echo ws.CurrentDirectory = "%~dp0"
-echo ws.Run "cmd /c node ""%~dp0server.js"" >> ""%~dp0server.log"" 2>&1", 0, False
-) > launch_server.vbs
+echo ws.Run "cmd /c node ""%~dp0server.js"" ^>^> ""%~dp0server.log"" 2^>^&1", 0, False
+) > "%~dp0launch_server.vbs"
 echo launch_server.vbs created
 
 echo.
@@ -46,13 +47,13 @@ echo Auto-start configured
 
 echo.
 echo [5/5] Starting service...
-cscript //Nologo launch_server.vbs
+cscript //Nologo "%~dp0launch_server.vbs"
 timeout /t 2 /nobreak >nul
 
 echo.
-if exist server.log (
+if exist "%~dp0server.log" (
     echo Server log:
-    type server.log
+    type "%~dp0server.log"
 ) else (
     echo [WARN] No log file. Service may not have started.
 )

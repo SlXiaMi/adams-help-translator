@@ -1,8 +1,63 @@
-/__health 响应缓存	如果 Edge 缓存了这枚 1×1 PNG，服务关闭后 img.onload 可能仍触发，导致反复跳转到失效地址。	在 server.js 返回图片时设置响应头：
-'Cache-Control': 'no-cache, no-store, must-revalidate'
-Server 日志输出	文档提到 server.js 写 server.log，但未说明 console.log/error 是否重定向。VBS 隐藏窗口启动后，若未显式写文件，所有控制台输出会丢失，问题难以排查。	在 server.js 开头用 fs.createWriteStream 重定向 process.stdout/stderr，或在 launch_server.vbs 里用 cmd /c node server.js >> server.log 2>&1 的方式启动。
-server.pid 残留	如果 Node 进程被强制结束（如任务管理器终止），server.pid 文件不会删除；下次启动会覆盖，无大碍。但若手动删除 server.js 后残留 PID 文件，recover.bat 执行 taskkill /PID 会报错（进程不存在）。	在 recover.bat 中先判断进程是否存在，例如：
-tasklist /FI "PID eq %pid%" 2>NUL | find /I "%pid%" >NUL && taskkill /PID %pid%
-信号处理不完整	server.js 如果在退出时未删除 PID 文件，可能造成上面提到的小困扰。	在 server.js 中加入 process.on('exit', () => fs.unlinkSync(pidPath))，并监听 SIGTERM 等信号优雅关闭。
-帮助文件编码	设计假设所有 .htm 文件均为 UTF-8。若实际存在 ANSI/GBK 文件，注入的脚本片段（含中文提示）可能导致页面乱码或 </body> 被破坏。	可在 inject.js 中先检测文件是否带 BOM 或尝试读取前几个字节判断编码，否则保持原样；若全部已知为 UTF-8 则没问题。
-Edge 翻译栏触发	Edge 对 localhost 地址不会自动弹出翻译提示（与 127.0.0.1 或公网页面不同），用户必须手动点击地址栏翻译图标。	文档已在降级表格中说明，为必须的用户操作，无技术问题，但可考虑在注入的提示中加入“跳转后请点击地址栏翻译图标”的文字，减少用户困惑。
+这份**对照翻译滚动同步修复设计**在技术上是**正确且简洁的**，直接用 `scrollTop` 同步的方式确实能根除累积误差。下面从实现角度补充需要注意的细节，避免实际编码时踩坑。
+
+---
+
+### 一、方案的核心优势
+- ✅ 丢弃 CSS Transform，无累积误差
+- ✅ 每次同步都是基于当前 DOM 的绝对位置计算，干净可靠
+- ✅ 代码量大幅减少，维护性提升
+- ✅ 防回环锁机制清晰，不会出现“乒乓滚动”
+
+---
+
+### 二、需要特别留意的实现细节
+
+#### 1. `elementFromPoint` 的坐标基准
+文档说“屏幕上方 1/3 处（视口高度 33%）”，但左右面板通常并排，**并非占满整个视口宽度**。如果直接用 `window.innerHeight * 0.33` 作为 y，而 x 坐标随意取一个（比如 `0`），点可能落在面板之外，直接返回 `null` 或错误的元素。
+
+**正确做法**：应该取**源面板容器本身的可视区域**中的 33% 位置。例如：
+```javascript
+var rect = srcPanel.getBoundingClientRect();
+var x = rect.left + rect.width / 2;   // 面板水平中心
+var y = rect.top + rect.height * 0.33;
+var el = document.elementFromPoint(x, y);
+```
+这样无论面板尺寸、位置如何，都能准确定位。
+
+#### 2. `offsetTo` 对 `position: sticky / fixed` 的兼容性
+沿 `offsetParent` 链累加 `offsetTop` 只对普通流或定位元素有效。如果内部有 `sticky` 或 `fixed` 定位的元素，`offsetTop` 不会反映其视觉偏移。假设你的对照翻译面板内部不会出现这种布局（通常都是线性文档流），问题不大；但若翻译插件或自定义样式引入了 `sticky` 元素，则需要改用 `getBoundingClientRect` 计算相对容器视口顶部的差值。
+
+安全通用的 `offsetTo` 可写为：
+```javascript
+function offsetTo(el, container) {
+    return el.getBoundingClientRect().top - container.getBoundingClientRect().top;
+}
+```
+性能消耗相近，且彻底避免布局模式差异。
+
+#### 3. 防回环锁的时序
+用 `syncing` 布尔值 + `requestAnimationFrame` 释放，在 Chromium 内核下是安全的：
+- 设置 `srcPanel.scrollTop` → 同步代码结束
+- 浏览器异步触发 `targetPanel` 的 `scroll` 事件
+- 该事件回调执行时 `syncing` 仍为 `true`，被 `if (syncing) return;` 拦截
+- 下一个渲染帧的 rAF 释放锁
+
+但注意：**如果同步过程中因某些原因又调用了 `syncScroll`（比如在 `set scrollTop` 后立即手动读取布局），可能会提前触发重排并同步触发事件**。在 Chrome 中 `scroll` 事件不会被立即触发，标准也保证异步，可放心。
+
+#### 4. 快速滚动时的丢帧与跟随性
+方案中 `syncing` 会阻止同一帧内对侧的二次同步，这意味着：
+- 如果连续滚动（如触摸板惯性滚动），每帧只会有一次同步机会，且**跳跃性滚动可能被丢弃一次同步**，导致短暂不同步。
+- 但因为下一次滚动事件又会重新基于元素绝对位置计算，偏差不会累积，停止滚动后总能对齐。
+
+这是可接受的取舍。如需更跟手，可考虑用 `requestAnimationFrame` 节流代替锁，但复杂度上升，当前方案足够。
+
+#### 5. `querySelector` 找不到索引元素的降级
+翻译后 DOM 可能被增删（尤其机器翻译经常替换文本节点、添加 `<font>` 标签），某些索引元素可能被移出或合并。方案已说明“静默降级”，不会影响滚动。但需注意：**不要在此情况下抛出异常或反复尝试导致性能下降**，只需要 `if (!el_B) return;`。
+
+#### 6. 初始加载或链接跳转后的对齐
+点击内部链接跳转时，新页面加载后可能需要主动同步一次，否则两侧可能初始位置不同。文档中的 `handleLinkClick` 已简化，但没有提及**页面加载后的首次对齐**。可在 `DOMContentLoaded` 或类似时机调用一次 `syncScroll`（用当前活动面板作为源）来对齐初始视口。
+
+---
+
+### 三、结论
+这份设计**可行且优于旧方案**，只需在实现时处理好上面几个坐标计算和边界问题，就能获得精确、流畅的对照翻译滚动体验。方案中无结构性缺陷。
