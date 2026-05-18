@@ -2,3 +2,6 @@
 launch_server.vbs
 server.log
 server.pid
+
+# Superpowers brainstorming artifacts
+.superpowers/
