@@ -117,15 +117,6 @@ const HINT = `
         // === 滚动同步（直接 scrollTop，锚定 33% 视口高度）===
         var syncing=false;
 
-        function offsetTo(el,container){
-            var o=0;
-            while(el&&el!==container){
-                o+=el.offsetTop;
-                el=el.offsetParent;
-            }
-            return o;
-        }
-
         function elAtFrac(panel,frac){
             var r=panel.getBoundingClientRect();
             var el=document.elementFromPoint(r.left+r.width/2, r.top+r.height*frac);
@@ -143,8 +134,11 @@ const HINT = `
             var idx=anchor.getAttribute('data-tr-i');
             var tgtEl=tgt.querySelector('[data-tr-i="'+idx+'"]');
             if(!tgtEl){syncing=false;return;}
-            var anchorY=offsetTo(anchor,src.firstElementChild)-src.scrollTop;
-            tgt.scrollTop=offsetTo(tgtEl,tgt.firstElementChild)-anchorY;
+            var srcRect=src.getBoundingClientRect();
+            var anchorVisualY=anchor.getBoundingClientRect().top-srcRect.top;
+            var tgtRect=tgt.getBoundingClientRect();
+            var tgtElVisualY=tgtEl.getBoundingClientRect().top-tgtRect.top;
+            tgt.scrollTop+=tgtElVisualY-anchorVisualY;
             requestAnimationFrame(function(){syncing=false;});
         }
 
@@ -166,7 +160,9 @@ const HINT = `
                 if(id){
                     var target=document.getElementById(id);
                     if(target&&target.hasAttribute('data-tr-i')){
-                        left.scrollTo({top:target.offsetTop,behavior:'instant'});
+                        var lr=left.getBoundingClientRect();
+                        var tr=target.getBoundingClientRect();
+                        left.scrollTo({top:left.scrollTop+tr.top-lr.top,behavior:'instant'});
                     }
                 }
             }else{
