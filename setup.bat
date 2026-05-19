@@ -31,7 +31,7 @@ echo [3/5] Creating launcher...
 (
 echo Set ws = CreateObject^("WScript.Shell"^)
 echo ws.CurrentDirectory = "%~dp0"
-echo ws.Run "cmd /c node ""%~dp0server.js"" ^>^> ""%~dp0server.log"" 2^>^&1", 0, False
+echo ws.Run "node ""%~dp0server.js""", 0, False
 ) > "%~dp0launch_server.vbs"
 echo launch_server.vbs created
 

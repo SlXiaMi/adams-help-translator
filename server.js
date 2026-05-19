@@ -7,6 +7,14 @@ const path = require('path');
 const PORT = 8777;
 const ROOT = path.resolve(__dirname, '..');
 const PID_FILE = path.join(__dirname, 'server.pid');
+const LOG_FILE = path.join(__dirname, 'server.log');
+
+// 重定向 stdout/stderr 到日志文件
+const logStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
+const stdoutWrite = logStream.write.bind(logStream);
+const stderrWrite = logStream.write.bind(logStream);
+process.stdout.write = function() { stdoutWrite.apply(logStream, arguments); };
+process.stderr.write = function() { stderrWrite.apply(logStream, arguments); };
 
 // 1x1 transparent PNG
 const PIXEL_PNG = Buffer.from(
