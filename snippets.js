@@ -114,36 +114,22 @@ const HINT = `
         indexAll(leftInner);
         indexAll(rightInner);
 
-        // === 滚动同步（直接 scrollTop，锚定 33% 视口高度）===
+        // === 滚动同步（直接 scrollTop 镜像，零 DOM 查询）===
         var syncing=false;
 
-        function elAtFrac(panel,frac){
-            var r=panel.getBoundingClientRect();
-            var el=document.elementFromPoint(r.left+r.width/2, r.top+r.height*frac);
-            while(el&&el!==panel&&(!el.hasAttribute||!el.hasAttribute('data-tr-i'))){
-                el=el.parentElement;
-            }
-            return (el&&el!==panel&&el.hasAttribute('data-tr-i'))?el:null;
-        }
-
-        function syncScroll(src,tgt){
+        left.addEventListener('scroll',function(){
             if(syncing)return;
             syncing=true;
-            var anchor=elAtFrac(src,0.33);
-            if(!anchor){syncing=false;return;}
-            var idx=anchor.getAttribute('data-tr-i');
-            var tgtEl=tgt.querySelector('[data-tr-i="'+idx+'"]');
-            if(!tgtEl){syncing=false;return;}
-            var srcRect=src.getBoundingClientRect();
-            var anchorVisualY=anchor.getBoundingClientRect().top-srcRect.top;
-            var tgtRect=tgt.getBoundingClientRect();
-            var tgtElVisualY=tgtEl.getBoundingClientRect().top-tgtRect.top;
-            tgt.scrollTop+=tgtElVisualY-anchorVisualY;
-            requestAnimationFrame(function(){syncing=false;});
-        }
+            right.scrollTop=left.scrollTop;
+            syncing=false;
+        },{passive:true});
 
-        left.addEventListener('scroll',function(){syncScroll(left,right);},{passive:true});
-        right.addEventListener('scroll',function(){syncScroll(right,left);},{passive:true});
+        right.addEventListener('scroll',function(){
+            if(syncing)return;
+            syncing=true;
+            left.scrollTop=right.scrollTop;
+            syncing=false;
+        },{passive:true});
         function handleLinkClick(e){
             var a=e.target.closest('a');
             if(!a||!a.href||a.href==='#'||a.getAttribute('href')==='#')return;
