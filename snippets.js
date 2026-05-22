@@ -114,21 +114,23 @@ const HINT = `
         indexAll(leftInner);
         indexAll(rightInner);
 
-        // === 滚动同步（直接 scrollTop 镜像，零 DOM 查询）===
-        var syncing=false;
+        // === 滚动同步（直接 scrollTop 镜像，值追踪防回环）===
+        // 记录最后一次程序化设置的值。当对侧 scroll 事件触发时，
+        // 如果 scrollTop 等于我们设的值，说明是"回音"，跳过。
+        var lastSetL=-1,lastSetR=-1;
 
         left.addEventListener('scroll',function(){
-            if(syncing)return;
-            syncing=true;
-            right.scrollTop=left.scrollTop;
-            requestAnimationFrame(function(){syncing=false;});
+            var v=left.scrollTop;
+            if(v===lastSetL)return;
+            right.scrollTop=v;
+            lastSetR=v;
         },{passive:true});
 
         right.addEventListener('scroll',function(){
-            if(syncing)return;
-            syncing=true;
-            left.scrollTop=right.scrollTop;
-            requestAnimationFrame(function(){syncing=false;});
+            var v=right.scrollTop;
+            if(v===lastSetR)return;
+            left.scrollTop=v;
+            lastSetL=v;
         },{passive:true});
         function handleLinkClick(e){
             var a=e.target.closest('a');
