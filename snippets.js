@@ -88,15 +88,19 @@ const HINT = `
 
         // Single scroll container — both columns share one scrollTop.
         // No JS sync needed. Compositor handles everything natively.
+        // isolation:isolate + translateZ(0) = dedicated compositor layer.
+        // contain:layout style = isolate layout from rest of page.
         var colStyle='width:50%;padding:32px 36px;box-sizing:border-box;'+
-            'font-family:"Georgia","Noto Serif",serif;font-size:15px;line-height:1.85;color:#333';
+            'font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.7;color:#333';
 
         document.body.innerHTML=''
             +'<div style="display:flex;flex-direction:column;height:100vh;background:#fff;margin:0">'
             +headerHtml
-            +'<div id="_tr_dual" style="flex:1;display:flex;overflow-y:auto">'
+            +'<div id="_tr_dual" style="flex:1;overflow-y:auto;isolation:isolate;transform:translateZ(0);contain:layout style">'
+            +'<div style="display:flex;min-height:100%">'
             +'<div id="_tr_left" translate="no" style="'+colStyle+';border-right:1px solid #eee;background:#fdfdfd">'+content+'</div>'
             +'<div id="_tr_right" style="'+colStyle+';background:#fff">'+content+'</div>'
+            +'</div>'
             +'</div>'
             +footerHtml
             +'</div>';
