@@ -86,52 +86,21 @@ const HINT = `
             +'<span style="display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#c0504d;display:inline-block"></span> 中文翻译</span>'
             +'</footer>';
 
-        var colStyle='width:50%;overflow-y:auto;padding:32px 36px;box-sizing:border-box;'+
+        // Single scroll container — both columns share one scrollTop.
+        // No JS sync needed. Compositor handles everything natively.
+        var colStyle='width:50%;padding:32px 36px;box-sizing:border-box;'+
             'font-family:"Georgia","Noto Serif",serif;font-size:15px;line-height:1.85;color:#333';
 
         document.body.innerHTML=''
             +'<div style="display:flex;flex-direction:column;height:100vh;background:#fff;margin:0">'
             +headerHtml
-            +'<div id="_tr_dual" style="flex:1;display:flex;overflow:hidden">'
-            +'<div id="_tr_left" translate="no" style="'+colStyle+';border-right:1px solid #eee;background:#fdfdfd">'
-            +'<div id="_tr_left_inner">'+content+'</div></div>'
-            +'<div id="_tr_right" style="'+colStyle+';background:#fff">'
-            +'<div id="_tr_right_inner">'+content+'</div></div>'
+            +'<div id="_tr_dual" style="flex:1;display:flex;overflow-y:auto">'
+            +'<div id="_tr_left" translate="no" style="'+colStyle+';border-right:1px solid #eee;background:#fdfdfd">'+content+'</div>'
+            +'<div id="_tr_right" style="'+colStyle+';background:#fff">'+content+'</div>'
             +'</div>'
             +footerHtml
             +'</div>';
-        var left=document.getElementById('_tr_left'),right=document.getElementById('_tr_right');
-        var leftInner=document.getElementById('_tr_left_inner'),rightInner=document.getElementById('_tr_right_inner');
 
-        // === 给两侧 DOM 树中所有元素打索引（DFS 序，两侧完全一致） ===
-        var indexAll=function(root){
-            var i=0;
-            (function walk(el){
-                if(el.nodeType===1){el.setAttribute('data-tr-i',i++);}
-                for(var c=el.firstChild;c;c=c.nextSibling){walk(c);}
-            })(root);
-        };
-        indexAll(leftInner);
-        indexAll(rightInner);
-
-        // === 滚动同步（直接 scrollTop 镜像，值追踪防回环）===
-        // 记录最后一次程序化设置的值。当对侧 scroll 事件触发时，
-        // 如果 scrollTop 等于我们设的值，说明是"回音"，跳过。
-        var lastSetL=-1,lastSetR=-1;
-
-        left.addEventListener('scroll',function(){
-            var v=left.scrollTop;
-            if(v===lastSetL)return;
-            right.scrollTop=v;
-            lastSetR=v;
-        },{passive:true});
-
-        right.addEventListener('scroll',function(){
-            var v=right.scrollTop;
-            if(v===lastSetR)return;
-            left.scrollTop=v;
-            lastSetL=v;
-        },{passive:true});
         function handleLinkClick(e){
             var a=e.target.closest('a');
             if(!a||!a.href||a.href==='#'||a.getAttribute('href')==='#')return;
@@ -142,25 +111,14 @@ const HINT = `
             var isSamePage=(resolved.origin===location.origin&&
                             resolved.pathname===location.pathname);
 
-            if(isSamePage||rawHref.charAt(0)==='#'){
-                e.preventDefault();
-                var id=resolved.hash?resolved.hash.replace(/^#/,''):'';
-                if(id){
-                    var target=document.getElementById(id);
-                    if(target&&target.hasAttribute('data-tr-i')){
-                        var lr=left.getBoundingClientRect();
-                        var tr=target.getBoundingClientRect();
-                        left.scrollTo({top:left.scrollTop+tr.top-lr.top,behavior:'instant'});
-                    }
-                }
-            }else{
+            if(!isSamePage&&rawHref.charAt(0)!=='#'){
                 e.preventDefault();
                 window.open(a.href,'_blank');
             }
         }
         document.body.addEventListener('click',handleLinkClick);
 
-        document.title='Bilingual Reader - '+(contentEl?contentEl.querySelector('h1,h2,h3')?contentEl.querySelector('h1,h2,h3').textContent:'':'');
+        document.title='Bilingual Reader - '+(contentEl?((contentEl.querySelector('h1,h2,h3')||{}).textContent||''):'');
         return;
     }
 
