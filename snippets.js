@@ -89,18 +89,14 @@ const HINT = `
         var colStyle='width:50%;overflow-y:auto;padding:32px 36px;box-sizing:border-box;'+
             'font-family:"Georgia","Noto Serif",serif;font-size:15px;line-height:1.85;color:#333';
 
-        // inner wrapper style: content-visibility auto skips rendering for off-screen
-        // content, reducing paint cost by ~90% on large DOMs
-        var innerStyle='content-visibility:auto';
-
         document.body.innerHTML=''
             +'<div style="display:flex;flex-direction:column;height:100vh;background:#fff;margin:0">'
             +headerHtml
             +'<div id="_tr_dual" style="flex:1;display:flex;overflow:hidden">'
             +'<div id="_tr_left" translate="no" style="'+colStyle+';border-right:1px solid #eee;background:#fdfdfd">'
-            +'<div id="_tr_left_inner" style="'+innerStyle+'">'+content+'</div></div>'
+            +'<div id="_tr_left_inner">'+content+'</div></div>'
             +'<div id="_tr_right" style="'+colStyle+';background:#fff">'
-            +'<div id="_tr_right_inner" style="'+innerStyle+'">'+content+'</div></div>'
+            +'<div id="_tr_right_inner">'+content+'</div></div>'
             +'</div>'
             +footerHtml
             +'</div>';
@@ -125,14 +121,14 @@ const HINT = `
             if(syncing)return;
             syncing=true;
             right.scrollTop=left.scrollTop;
-            syncing=false;
+            requestAnimationFrame(function(){syncing=false;});
         },{passive:true});
 
         right.addEventListener('scroll',function(){
             if(syncing)return;
             syncing=true;
             left.scrollTop=right.scrollTop;
-            syncing=false;
+            requestAnimationFrame(function(){syncing=false;});
         },{passive:true});
         function handleLinkClick(e){
             var a=e.target.closest('a');
