@@ -89,7 +89,7 @@ const HINT = `
         // Single scroll container — both columns share one scrollTop.
         // content-visibility:auto = skip rendering of off-screen content.
         // contain-intrinsic-size uses remembered size after first paint.
-        var colStyle='width:50%;padding:28px 32px;box-sizing:border-box;'+
+        var colStyle='width:50%;padding:20px 16px;box-sizing:border-box;'+
             'font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.65;color:#333;'+
             'content-visibility:auto;contain-intrinsic-size:auto 800px';
 
