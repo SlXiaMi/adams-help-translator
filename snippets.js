@@ -86,30 +86,63 @@ const HINT = `
             +'<span style="display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#c0504d;display:inline-block"></span> 中文翻译</span>'
             +'</footer>';
 
-        // Single scroll container — both columns share one scrollTop.
-        // content-visibility:auto = skip rendering of off-screen content.
-        // contain-intrinsic-size uses remembered size after first paint.
-        var colStyle='width:50%;padding:20px 16px;box-sizing:border-box;'+
-            'font-family:system-ui,-apple-system,sans-serif;font-size:15px;line-height:1.65;color:#333;'+
-            'content-visibility:auto;contain-intrinsic-size:auto 800px';
+        // contain/scroll-position 隔离每个面板的布局与绘制,GPU 层提升滚动性能
+        // content-visibility 对大面积文档跳过屏外渲染,大文件关键优化
+        var colStyle='width:50%;overflow-y:auto;padding:32px 36px;box-sizing:border-box;'+
+            'contain:layout style paint;will-change:scroll-position;'+
+            'font-family:"Georgia","Noto Serif",serif;font-size:15px;line-height:1.85;color:#333';
 
         document.body.innerHTML=''
-            +'<style>'
-            +'#_tr_dual{flex:1;overflow-y:auto;isolation:isolate;transform:translateZ(0);contain:layout style paint;overscroll-behavior:contain;scrollbar-gutter:stable}'
-            +'#_tr_dual img{content-visibility:auto;contain-intrinsic-size:auto 300px}'
-            +'#_tr_dual table{content-visibility:auto;contain-intrinsic-size:auto 200px}'
-            +'</style>'
             +'<div style="display:flex;flex-direction:column;height:100vh;background:#fff;margin:0">'
             +headerHtml
-            +'<div id="_tr_dual">'
-            +'<div style="display:grid;grid-template-columns:1fr 1fr;min-height:100%">'
-            +'<div id="_tr_left" translate="no" style="'+colStyle+';border-right:1px solid #eee;background:#fdfdfd">'+content+'</div>'
-            +'<div id="_tr_right" style="'+colStyle+';background:#fff">'+content+'</div>'
-            +'</div>'
+            +'<div id="_tr_dual" style="flex:1;display:flex;overflow:hidden">'
+            +'<div id="_tr_left" translate="no" style="'+colStyle+';border-right:1px solid #eee;background:#fdfdfd">'
+            +'<div id="_tr_left_inner">'+content+'</div></div>'
+            +'<div id="_tr_right" style="'+colStyle+';background:#fff">'
+            +'<div id="_tr_right_inner">'+content+'</div></div>'
             +'</div>'
             +footerHtml
             +'</div>';
 
+        // 大文档优化：跳过屏外内容块的渲染
+        if(content.length>30000){
+            var cvStyle=document.createElement('style');
+            cvStyle.textContent=
+                '#_tr_left_inner>div,#_tr_left_inner>p,#_tr_left_inner>section,#_tr_left_inner>table,#_tr_left_inner>ul,#_tr_left_inner>ol,'+
+                '#_tr_right_inner>div,#_tr_right_inner>p,#_tr_right_inner>section,#_tr_right_inner>table,#_tr_right_inner>ul,#_tr_right_inner>ol'+
+                '{content-visibility:auto;contain-intrinsic-size:auto 500px}';
+            document.head.appendChild(cvStyle);
+        }
+        var left=document.getElementById('_tr_left'),right=document.getElementById('_tr_right');
+        var leftInner=document.getElementById('_tr_left_inner'),rightInner=document.getElementById('_tr_right_inner');
+
+        // === 给两侧 DOM 树中所有元素打索引（DFS 序，两侧完全一致） ===
+        var indexAll=function(root){
+            var i=0;
+            (function walk(el){
+                if(el.nodeType===1){el.setAttribute('data-tr-i',i++);}
+                for(var c=el.firstChild;c;c=c.nextSibling){walk(c);}
+            })(root);
+        };
+        indexAll(leftInner);
+        indexAll(rightInner);
+
+        // === 滚动同步（直接 scrollTop 镜像，零 DOM 查询）===
+        var syncing=false;
+
+        left.addEventListener('scroll',function(){
+            if(syncing)return;
+            syncing=true;
+            right.scrollTop=left.scrollTop;
+            syncing=false;
+        },{passive:true});
+
+        right.addEventListener('scroll',function(){
+            if(syncing)return;
+            syncing=true;
+            left.scrollTop=right.scrollTop;
+            syncing=false;
+        },{passive:true});
         function handleLinkClick(e){
             var a=e.target.closest('a');
             if(!a||!a.href||a.href==='#'||a.getAttribute('href')==='#')return;
@@ -120,14 +153,25 @@ const HINT = `
             var isSamePage=(resolved.origin===location.origin&&
                             resolved.pathname===location.pathname);
 
-            if(!isSamePage&&rawHref.charAt(0)!=='#'){
+            if(isSamePage||rawHref.charAt(0)==='#'){
+                e.preventDefault();
+                var id=resolved.hash?resolved.hash.replace(/^#/,''):'';
+                if(id){
+                    var target=document.getElementById(id);
+                    if(target&&target.hasAttribute('data-tr-i')){
+                        var lr=left.getBoundingClientRect();
+                        var tr=target.getBoundingClientRect();
+                        left.scrollTo({top:left.scrollTop+tr.top-lr.top,behavior:'instant'});
+                    }
+                }
+            }else{
                 e.preventDefault();
                 window.open(a.href,'_blank');
             }
         }
         document.body.addEventListener('click',handleLinkClick);
 
-        document.title='Bilingual Reader - '+(contentEl?((contentEl.querySelector('h1,h2,h3')||{}).textContent||''):'');
+        document.title='Bilingual Reader - '+(contentEl?contentEl.querySelector('h1,h2,h3')?contentEl.querySelector('h1,h2,h3').textContent:'':'');
         return;
     }
 
