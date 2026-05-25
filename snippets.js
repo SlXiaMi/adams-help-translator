@@ -146,34 +146,28 @@ const HINT = `
 
         // === 滚动穿透：一侧到底后，滚轮继续传递给对侧 ===
         left.addEventListener('wheel',function(e){
-            var lm=left.scrollHeight-left.clientHeight;
-            if(e.deltaY>0&&left.scrollTop>=lm-1){
-                e.preventDefault();
+            if(e.deltaY>0&&left.scrollTop>=left.scrollHeight-left.clientHeight-1){
                 syncing=true;
-                right.scrollTop=Math.min(right.scrollTop+e.deltaY,right.scrollHeight-right.clientHeight);
+                right.scrollTop=right.scrollTop+e.deltaY;
                 requestAnimationFrame(function(){syncing=false;});
             }else if(e.deltaY<0&&left.scrollTop<=0){
-                e.preventDefault();
                 syncing=true;
-                right.scrollTop=Math.max(right.scrollTop+e.deltaY,0);
+                right.scrollTop=right.scrollTop+e.deltaY;
                 requestAnimationFrame(function(){syncing=false;});
             }
-        },{passive:false});
+        },{passive:true});
 
         right.addEventListener('wheel',function(e){
-            var rm=right.scrollHeight-right.clientHeight;
-            if(e.deltaY>0&&right.scrollTop>=rm-1){
-                e.preventDefault();
+            if(e.deltaY>0&&right.scrollTop>=right.scrollHeight-right.clientHeight-1){
                 syncing=true;
-                left.scrollTop=Math.min(left.scrollTop+e.deltaY,left.scrollHeight-left.clientHeight);
+                left.scrollTop=left.scrollTop+e.deltaY;
                 requestAnimationFrame(function(){syncing=false;});
             }else if(e.deltaY<0&&right.scrollTop<=0){
-                e.preventDefault();
                 syncing=true;
-                left.scrollTop=Math.max(left.scrollTop+e.deltaY,0);
+                left.scrollTop=left.scrollTop+e.deltaY;
                 requestAnimationFrame(function(){syncing=false;});
             }
-        },{passive:false});
+        },{passive:true});
 
         function handleLinkClick(e){
             var a=e.target.closest('a');
