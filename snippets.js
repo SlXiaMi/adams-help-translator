@@ -147,13 +147,12 @@ const HINT = `
         // === 滚动穿透：一侧到底后，滚轮继续传递给对侧 ===
         left.addEventListener('wheel',function(e){
             var lm=left.scrollHeight-left.clientHeight;
-            var rm=right.scrollHeight-right.clientHeight;
-            if(e.deltaY>0&&left.scrollTop>=lm-1&&right.scrollTop<rm){
+            if(e.deltaY>0&&left.scrollTop>=lm-1){
                 e.preventDefault();
                 syncing=true;
-                right.scrollTop=Math.min(right.scrollTop+e.deltaY,rm);
+                right.scrollTop=Math.min(right.scrollTop+e.deltaY,right.scrollHeight-right.clientHeight);
                 requestAnimationFrame(function(){syncing=false;});
-            }else if(e.deltaY<0&&left.scrollTop<=0&&right.scrollTop>0){
+            }else if(e.deltaY<0&&left.scrollTop<=0){
                 e.preventDefault();
                 syncing=true;
                 right.scrollTop=Math.max(right.scrollTop+e.deltaY,0);
@@ -162,14 +161,13 @@ const HINT = `
         },{passive:false});
 
         right.addEventListener('wheel',function(e){
-            var lm=left.scrollHeight-left.clientHeight;
             var rm=right.scrollHeight-right.clientHeight;
-            if(e.deltaY>0&&right.scrollTop>=rm-1&&left.scrollTop<lm){
+            if(e.deltaY>0&&right.scrollTop>=rm-1){
                 e.preventDefault();
                 syncing=true;
-                left.scrollTop=Math.min(left.scrollTop+e.deltaY,lm);
+                left.scrollTop=Math.min(left.scrollTop+e.deltaY,left.scrollHeight-left.clientHeight);
                 requestAnimationFrame(function(){syncing=false;});
-            }else if(e.deltaY<0&&right.scrollTop<=0&&left.scrollTop>0){
+            }else if(e.deltaY<0&&right.scrollTop<=0){
                 e.preventDefault();
                 syncing=true;
                 left.scrollTop=Math.max(left.scrollTop+e.deltaY,0);
