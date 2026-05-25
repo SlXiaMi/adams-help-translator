@@ -86,8 +86,7 @@ const HINT = `
             +'<span style="display:flex;align-items:center;gap:4px"><span style="width:6px;height:6px;border-radius:50%;background:#c0504d;display:inline-block"></span> 中文翻译</span>'
             +'</footer>';
 
-        // contain/scroll-position 隔离每个面板的布局与绘制,GPU 层提升滚动性能
-        // content-visibility 对大面积文档跳过屏外渲染,大文件关键优化
+        // contain 隔离布局与绘制；will-change 提升到 GPU 合成层
         var colStyle='width:50%;overflow-y:auto;padding:32px 36px;box-sizing:border-box;'+
             'contain:layout style paint;will-change:scroll-position;'+
             'font-family:"Georgia","Noto Serif",serif;font-size:15px;line-height:1.85;color:#333';
@@ -103,16 +102,6 @@ const HINT = `
             +'</div>'
             +footerHtml
             +'</div>';
-
-        // 大文档优化：跳过屏外内容块的渲染
-        if(content.length>30000){
-            var cvStyle=document.createElement('style');
-            cvStyle.textContent=
-                '#_tr_left_inner>div,#_tr_left_inner>p,#_tr_left_inner>section,#_tr_left_inner>table,#_tr_left_inner>ul,#_tr_left_inner>ol,'+
-                '#_tr_right_inner>div,#_tr_right_inner>p,#_tr_right_inner>section,#_tr_right_inner>table,#_tr_right_inner>ul,#_tr_right_inner>ol'+
-                '{content-visibility:auto;contain-intrinsic-size:auto 500px}';
-            document.head.appendChild(cvStyle);
-        }
         var left=document.getElementById('_tr_left'),right=document.getElementById('_tr_right');
         var leftInner=document.getElementById('_tr_left_inner'),rightInner=document.getElementById('_tr_right_inner');
 
