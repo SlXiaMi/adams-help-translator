@@ -127,20 +127,24 @@ const HINT = `
         indexAll(leftInner);
         indexAll(rightInner);
 
-        // === 滚动同步（直接 scrollTop 镜像，零 DOM 查询）===
+        // === 滚动同步（百分比映射，长文本对齐一致）===
         var syncing=false;
 
         left.addEventListener('scroll',function(){
             if(syncing)return;
             syncing=true;
-            right.scrollTop=left.scrollTop;
+            var lm=left.scrollHeight-left.clientHeight;
+            var rm=right.scrollHeight-right.clientHeight;
+            if(lm>0)right.scrollTop=(left.scrollTop/lm)*(rm>0?rm:0);
             syncing=false;
         },{passive:true});
 
         right.addEventListener('scroll',function(){
             if(syncing)return;
             syncing=true;
-            left.scrollTop=right.scrollTop;
+            var lm=left.scrollHeight-left.clientHeight;
+            var rm=right.scrollHeight-right.clientHeight;
+            if(rm>0)left.scrollTop=(right.scrollTop/rm)*(lm>0?lm:0);
             syncing=false;
         },{passive:true});
 
@@ -148,11 +152,12 @@ const HINT = `
         left.addEventListener('wheel',function(e){
             if(e.deltaY>0&&left.scrollTop>=left.scrollHeight-left.clientHeight-1){
                 syncing=true;
-                right.scrollTop=right.scrollTop+e.deltaY;
+                var rm=right.scrollHeight-right.clientHeight;
+                right.scrollTop=Math.min(right.scrollTop+e.deltaY,rm);
                 requestAnimationFrame(function(){syncing=false;});
             }else if(e.deltaY<0&&left.scrollTop<=0){
                 syncing=true;
-                right.scrollTop=right.scrollTop+e.deltaY;
+                right.scrollTop=Math.max(right.scrollTop+e.deltaY,0);
                 requestAnimationFrame(function(){syncing=false;});
             }
         },{passive:true});
@@ -160,11 +165,12 @@ const HINT = `
         right.addEventListener('wheel',function(e){
             if(e.deltaY>0&&right.scrollTop>=right.scrollHeight-right.clientHeight-1){
                 syncing=true;
-                left.scrollTop=left.scrollTop+e.deltaY;
+                var lm=left.scrollHeight-left.clientHeight;
+                left.scrollTop=Math.min(left.scrollTop+e.deltaY,lm);
                 requestAnimationFrame(function(){syncing=false;});
             }else if(e.deltaY<0&&right.scrollTop<=0){
                 syncing=true;
-                left.scrollTop=left.scrollTop+e.deltaY;
+                left.scrollTop=Math.max(left.scrollTop+e.deltaY,0);
                 requestAnimationFrame(function(){syncing=false;});
             }
         },{passive:true});
