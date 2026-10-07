@@ -32,9 +32,14 @@ const processFile = (filePath) => {
         return;
     }
 
-    // 精确移除注入的 <script> 块：从 <script data-translate-injected 到 </script>
-    const re = /[\t ]*<script data-translate-injected[^>]*>[\s\S]*?<\/script>\r?\n?/g;
-    const newContent = content.replace(re, '');
+    // 优先移除带分隔注释的整块（任意版本都能精确还原），
+    // 兜底：逐块移除旧版本注入的 <script data-translate-injected ...> 块
+    const regionRe = /<!--aht:start-->[\s\S]*?<!--aht:end-->[ \t]*\r?\n?/g;
+    const blockRe = /[\t ]*<script data-translate-injected[^>]*>[\s\S]*?<\/script>\r?\n?/g;
+    let newContent = content.replace(regionRe, '');
+    if (newContent.includes(MARKER)) {
+        newContent = newContent.replace(blockRe, '');
+    }
 
     if (newContent === content) {
         console.log('  WARN: marker found but regex did not match in', path.relative(HELP_DIR, filePath));

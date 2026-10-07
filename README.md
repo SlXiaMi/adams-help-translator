@@ -10,6 +10,8 @@ Adams 按 F1 默认打开 `file://` 协议的本地帮助文件，Edge 翻译功
 2. **后台 HTTP 服务** — Node.js 静态文件服务器，开机自启，无窗口静默运行
 3. **翻译增强** — 自动标记导航/TOC 为 `translate="no"`，节省翻译预算给正文；提供对照翻译和阅读模式
 
+其中第 1 项（跳转脚本）必须内嵌在页面里，因为它要在 `file://` 阶段就执行；第 3 项的阅读器 UI 则由 `server.js` 以 `/__aht/reader.js` 单独提供，页面里只放一行 `<script src="/__aht/reader.js" defer>` 加载器。因此修改 UI 只需改 `snippets.js` 并重启服务，**无需重新注入 6000 多个页面**，每个帮助文件也少了约 15 KB。
+
 ## 功能
 
 | 功能 | 说明 |
@@ -139,7 +141,9 @@ help\
 
 ### Q: 端口 8777 被占用？
 
-编辑 `server.js`，将 `const PORT = 8777;` 改为其他端口（如 8778）。同时编辑 `snippets.js` 中 SNIPPET 模板里的 `localhost:8777` 为新端口。然后重新运行 `setup.bat`。
+编辑 `server.js`，将 `const PORT = 8777;` 改为其他端口（如 8778）。同时编辑 `snippets.js` 中 SNIPPET 模板里的 `localhost:8777` 为新端口。然后重新运行 `setup.bat`（只需刷新内嵌的跳转脚本）。
+
+阅读器 UI 的加载器使用相对路径 `/__aht/reader.js`，不含端口，因此改端口时不必管它。
 
 ### Q: 对照翻译的 URL `?__reader=1` 怎么用？
 
@@ -162,6 +166,8 @@ node inject.js
 如果下载的是 ZIP 包，重新下载并解压覆盖，然后重新运行 `setup.bat`。
 
 `node inject.js` 会自动刷新已注入的页面（先移除旧块再注入新版本），只会重写内容有变化的页面。
+
+如果只改了阅读器 UI（`snippets.js` 里的 HINT 模板），则**连注入都不需要**：保存后重启一次服务（重新运行 `launch_server.vbs`，或重启电脑）即刻生效，因为该 UI 由服务端实时提供。
 
 ### Q: 每次开机都弹出一个黑色命令行窗口？
 

@@ -2,18 +2,28 @@
 
 const fs = require('fs');
 const path = require('path');
-const { SNIPPET, HINT } = require('./snippets');
+const { SNIPPET } = require('./snippets');
 
 const HELP_DIR = path.resolve(__dirname, '..');
 const MARKER = 'data-translate-injected';
 
-// The exact payload written into each page. It is the same structure that
-// recover.js strips, so a page that is already up to date can be restored
-// byte-for-byte and re-running this script stays idempotent.
-const PAYLOAD = SNIPPET + '\n' + HINT + '\n';
+// What gets injected into every page:
+//   1. the redirect snippet, kept inline because it has to run on file:// pages
+//      before the page is redirected to the local server;
+//   2. a loader for the reader UI, which server.js serves from /__aht/reader.js.
+//      Keeping the UI external means editing snippets.js and restarting the
+//      service is enough - no re-injection of all pages.
+// The payload sits between <!--aht:start--> and <!--aht:end--> so that any
+// future version can be removed byte-for-byte.
+const START = '<!--aht:start-->';
+const END = '<!--aht:end-->';
+const LOADER = '<script src="/__aht/reader.js" data-translate-injected="true" defer></script>';
+const PAYLOAD = START + '\n' + SNIPPET + '\n' + LOADER + '\n' + END + '\n';
 
-// Fallback for blocks written by an older version of snippets.js: their
-// content differs, so the exact match above fails and we strip by regex.
+// A delimited region from any version of the payload.
+const REGION_RE = /<!--aht:start-->[\s\S]*?<!--aht:end-->[ \t]*\r?\n?/g;
+
+// Fallback for pages injected before the delimiters existed: strip each block.
 const BLOCK_RE = /[\t ]*<script data-translate-injected[^>]*>[\s\S]*?<\/script>\r?\n?/g;
 
 let total = 0, injected = 0, updated = 0, current = 0, warned = 0;
@@ -40,11 +50,12 @@ const processFile = (filePath) => {
     const content = fs.readFileSync(filePath, 'utf-8');
     const hadMarker = content.includes(MARKER);
 
-    // Strip the previous injection first: exact match for the current version,
-    // regex fallback for older ones.
+    // Strip a previous injection first: the delimited region if present (exact
+    // for any version), otherwise per-block regex for pages injected before the
+    // delimiters were introduced.
     let base = content;
-    if (content.includes(PAYLOAD)) {
-        base = content.split(PAYLOAD).join('');
+    if (content.includes(START)) {
+        base = content.replace(REGION_RE, '');
     } else if (hadMarker) {
         base = content.replace(BLOCK_RE, '');
         if (base === content) {

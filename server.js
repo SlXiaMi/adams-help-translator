@@ -9,6 +9,15 @@ const ROOT = path.resolve(__dirname, '..');
 const PID_FILE = path.join(__dirname, 'server.pid');
 const LOG_FILE = path.join(__dirname, 'server.log');
 
+// The reader UI is served as an external script (see inject.js), so updating it
+// only takes editing snippets.js and restarting the service - no re-injection.
+const { HINT } = require('./snippets');
+
+// Strip the surrounding <script> tag from the template, keeping the JS body.
+const READER_JS = HINT
+    .replace(/^[\s\S]*?<script[^>]*>/i, '')
+    .replace(/<\/script>\s*$/i, '');
+
 // 重定向 stdout/stderr 到日志文件
 const logStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
 const stdoutWrite = logStream.write.bind(logStream);
@@ -65,6 +74,19 @@ const server = http.createServer((req, res) => {
                 'Expires': '0',
             });
             res.end(PIXEL_PNG);
+            return;
+        }
+
+        // Reader UI script, injected into every help page as
+        // <script src="/__aht/reader.js" defer data-translate-injected="true">
+        if (req.method === 'GET' && urlPath === '/__aht/reader.js') {
+            res.writeHead(200, {
+                'Content-Type': 'application/javascript; charset=utf-8',
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+            });
+            res.end(READER_JS);
             return;
         }
 

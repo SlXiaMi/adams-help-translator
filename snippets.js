@@ -216,7 +216,12 @@ const HINT = `
     var contentEl=document.getElementById('page_content')||
                    document.getElementById('ww_content_container');
     if(!contentEl)return;
-    if((document.body.textContent||'').length<5000)return;
+    // NOTE: intentionally no text-length guard here. The reader UI used to be
+    // injected inline (~15 KB of script text) and script text counts towards
+    // document.body.textContent, so the old "< 5000 characters" check was always
+    // satisfied and never filtered anything. Now that the UI is an external file
+    // that text is no longer in the page, so the guard is dropped to keep the
+    // buttons on every content page - exactly the behaviour before this change.
 
     // Target the top window so position:fixed works relative to browser viewport
     var topWin=window.top||window;
