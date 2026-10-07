@@ -7,7 +7,7 @@ echo   Adams Help Translation - Setup
 echo ========================================
 echo.
 
-echo [1/5] Checking Node.js...
+echo [1/6] Checking Node.js...
 node --version >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] Node.js not found. Install from https://nodejs.org
@@ -79,10 +79,19 @@ if exist "%~dp0server.log" (
 ) else (
     echo [WARN] No log file. Service may not have started.
 )
+echo.
+echo Verifying service on port 8777...
+powershell -NoProfile -Command "$ok=$false; for($i=1;$i -le 6;$i++){ try{ $r=Invoke-WebRequest 'http://127.0.0.1:8777/__health' -UseBasicParsing -TimeoutSec 5; if($r.StatusCode -eq 200){ $ok=$true; break } }catch{ Start-Sleep -Seconds 2 } }; if($ok){ Write-Host '[OK] Service is responding at http://localhost:8777' -ForegroundColor Green } else { Write-Host '[ERROR] Service is NOT responding on port 8777.' -ForegroundColor Red; Write-Host '        Run recover.bat as Administrator, then run setup.bat again.' -ForegroundColor Red; Write-Host '        Also make sure nothing else is listening on port 8777.' -ForegroundColor Red }"
+set "VERIFY_FAILED=0"
+if errorlevel 1 set "VERIFY_FAILED=1"
 
 echo.
 echo ========================================
-echo   Setup complete!
+if "!VERIFY_FAILED!"=="1" (
+    echo   Setup finished, but the service check FAILED - see above
+) else (
+    echo   Setup complete!
+)
 echo   Press F1 in Adams, help pages will
 echo   auto-redirect. Click the Edge translate
 echo   icon to translate to Chinese.
